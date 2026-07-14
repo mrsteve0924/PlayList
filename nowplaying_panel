@@ -1,6 +1,0 @@
-#!/bin/bash
-
-#used wih generic monitor panel plugin (xfce DE) to monitor media info file in /tmp directory and display in panel
-
-if [ ! -f /tmp/nowplaying ] ; then echo "" ; else cat /tmp/nowplaying2 ; fi
-

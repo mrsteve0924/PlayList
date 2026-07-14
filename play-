@@ -5,9 +5,21 @@ pkill vlc   # prevents multiple instances of vlc running
 
 read -p "artist or song: " audio
 
-find /mnt/files.ntfs/Multimedia/Music -type f ! \( -iname "desktop.ini" -o -iname "thumbs.db" \) > /tmp/playlist.m3u
+#Find all audio files, and skip anything inside hidden directories or hidden files themselves
+find /mnt/files.ntfs/Multimedia/Music \
+     "/mnt/files.ntfs/Multimedia/iTunes/iTunes Media/Music" \
+     -type d -name '.*' -prune -o \
+     -type f \
+     ! -name '.*' \
+     ! -iname "desktop.ini" \
+     ! -iname "thumbs.db" \
+     ! -iname "*.m4v" \
+     -print \
+     > /tmp/playlist.m3u
 
-grep -ie "$audio" /tmp/playlist.m3u > /tmp/playlist2.m3u
+#shuf /tmp/playlist.m3u -o /tmp/playlist.m3u
+grep -iE "$audio" /tmp/playlist.m3u > /tmp/playlist2.m3u
+#cat /tmp/playlist.m3u >> /tmp/playlist2.m3u
+
+
 cvlc --play-and-exit /tmp/playlist2.m3u </dev/null &>/dev/null&
-
-nowplaying &

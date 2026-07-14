@@ -1,13 +1,65 @@
 #!/bin/bash
 
+pkill -x vlc 2>/dev/null
 
-pkill vlc  # prevents multiple instances of vlc running
+CACHE_DIR="$HOME/.cache/music-shuffle"
+FULL_PLAYLIST="$CACHE_DIR/full_playlist.m3u"
+CURRENT_PLAYLIST="$CACHE_DIR/current_playlist.m3u"
+POSITION_FILE="$CACHE_DIR/position"
 
+mkdir -p "$CACHE_DIR"
 
-find /mnt/files.ntfs/Multimedia/Music -type f ! \( -iname "desktop.ini" -o -iname "thumbs.db" \) > /tmp/playlist.m3u
+make_playlist() {
+    find /mnt/files.ntfs/Multimedia/Music \
+         "/mnt/files.ntfs/Multimedia/iTunes/iTunes Media/Music" \
+         -type d -name '.*' -prune -o \
+         -type f \
+         ! -name '.*' \
+         ! -iname "desktop.ini" \
+         ! -iname "thumbs.db" \
+         ! -iname "*.m4v" \
+         -print \
+         | shuf > "$FULL_PLAYLIST"
 
-shuf /tmp/playlist.m3u -o /tmp/playlist.m3u
+    echo 1 > "$POSITION_FILE"
+}
 
-cvlc --play-and-exit /tmp/playlist.m3u </dev/null &>/dev/null&
+save_position_from_url() {
+    current_song="$1"
 
-nowplaying &
+    [[ "$current_song" == file://* ]] || return
+
+    current_song=${current_song#file://}
+
+    current_song=$(python3 -c '
+import sys, urllib.parse
+print(urllib.parse.unquote(sys.argv[1]))
+' "$current_song")
+
+    line=$(grep -nFx "$current_song" "$FULL_PLAYLIST" | head -n1 | cut -d: -f1)
+
+    [[ -n "$line" ]] && echo "$line" > "$POSITION_FILE"
+}
+
+[[ -s "$FULL_PLAYLIST" ]] || make_playlist
+
+position=$(cat "$POSITION_FILE" 2>/dev/null || echo 1)
+total=$(wc -l < "$FULL_PLAYLIST")
+
+if (( position > total )); then
+    make_playlist
+    position=1
+fi
+
+tail -n +"$position" "$FULL_PLAYLIST" > "$CURRENT_PLAYLIST"
+
+(
+    cvlc --play-and-exit "$CURRENT_PLAYLIST" </dev/null &>/dev/null &
+    vlc_pid=$!
+
+    playerctl --player=vlc metadata --format '{{xesam:url}}' --follow 2>/dev/null |
+    while IFS= read -r current_url; do
+        kill -0 "$vlc_pid" 2>/dev/null || break
+        save_position_from_url "$current_url"
+    done
+) &

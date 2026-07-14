@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Find the player that is actually Playing
+active=$(playerctl -l | while read p; do
+    # Skip firefox/chromium if desired
+    if echo "$p" | grep -qE 'firefox|chromium'; then
+        continue
+    fi
+
+    if playerctl -p "$p" status 2>/dev/null | grep -q "Playing"; then
+        echo "$p"
+        break
+    fi
+done)
+
+# If no active player found, silently exit
+[[ -z "$active" ]] && exit 0
+
+# Stop ONLY that player
+playerctl -p "$active" stop 2>/dev/null
