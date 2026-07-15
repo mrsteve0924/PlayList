@@ -1,20 +1,13 @@
 #!/bin/bash
+#stops player and updates current album art icon to transparent icon for panel
 
-# Find the player that is actually Playing
-active=$(playerctl -l | while read p; do
-    # Skip firefox/chromium if desired
-    if echo "$p" | grep -qE 'firefox|chromium'; then
-        continue
-    fi
+playerctl stop
 
-    if playerctl -p "$p" status 2>/dev/null | grep -q "Playing"; then
-        echo "$p"
-        break
-    fi
-done)
+ICON_PATH="$HOME/.icons/now-playing.png"
+TRANSPARENT_ICON="$HOME/.icons/transparent.png"
+PANEL_CONFIG="$HOME/.config/wayfire/wf-shell.ini"
 
-# If no active player found, silently exit
-[[ -z "$active" ]] && exit 0
-
-# Stop ONLY that player
-playerctl -p "$active" stop 2>/dev/null
+if [ "$(readlink "$ICON_PATH" 2>/dev/null)" != "$TRANSPARENT_ICON" ]; then
+    ln -sfn "$TRANSPARENT_ICON" "$ICON_PATH"
+    #touch "$PANEL_CONFIG"
+fi
